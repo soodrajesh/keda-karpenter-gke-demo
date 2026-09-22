@@ -1,9 +1,8 @@
 # keda-karpenter-gke-demo
 
 A working demo of the "SQS backlog triggers KEDA, which triggers Karpenter,
-which scales nodes 0→N→0" pattern — built and run entirely on **GCP**
-because that's what I had access to, not AWS. The architecture maps
-directly; only the managed-service names change.
+which scales nodes 0→N→0" pattern — built and run entirely on **GCP**. The
+architecture maps directly; only the managed-service names change.
 
 ## Architecture
 
