@@ -9,40 +9,26 @@ directly; only the managed-service names change.
 
 ```mermaid
 flowchart TB
-    LG["load-generator<br/>(publish.py)"] -->|"burst N messages"| TOPIC
+    LG["load-generator (publish.py)"] -->|"burst N messages"| TOPIC(["Pub/Sub topic<br/>keda-demo-work-queue"])
+    TOPIC --> SUB(["Pub/Sub subscription<br/>tracks backlog depth"])
 
-    subgraph PUBSUB["Cloud Pub/Sub — stands in for SQS"]
-        TOPIC(["Topic<br/>keda-demo-work-queue"]) --> SUB(["Subscription<br/>+ backlog depth"])
-    end
+    SUB -->|"polls num_undelivered_messages<br/>every 15s"| KEDA["KEDA operator + ScaledObject<br/>· baseline node pool, 1x e2-micro, always on"]
 
-    SUB -->|"polls num_undelivered_messages<br/>every 15s"| KEDA
+    KEDA -->|"scales Deployment<br/>0 to 10 replicas"| DEPLOY["pubsub-consumer Deployment"]
 
-    subgraph GKE["GKE cluster (keda-karpenter-demo)"]
-        subgraph BASE["baseline node pool — fixed 1 node, e2-micro"]
-            KEDA["KEDA operator<br/>+ ScaledObject"]
-        end
+    DEPLOY -.->|"Pending pods trigger"| AUTOSCALER["GKE cluster autoscaler<br/>· keda-workload pool, 0 to 2x e2-micro<br/>· plays the Karpenter role"]
+    AUTOSCALER -.->|"provisions / removes nodes for"| DEPLOY
 
-        KEDA -->|"scales Deployment<br/>0 → 10 replicas"| DEPLOY["pubsub-consumer<br/>Deployment"]
-
-        subgraph WORK["keda-workload node pool — 0 → 2 nodes, e2-micro<br/>(the Karpenter role)"]
-            DEPLOY -.->|"Pending pods trigger"| AUTOSCALER["GKE cluster autoscaler<br/>provisions / removes nodes"]
-            PODS["consumer pods<br/>pull + ack messages"]
-        end
-    end
-
+    DEPLOY --> PODS["consumer pods<br/>pull + ack messages"]
     SUB -->|"pull + ack"| PODS
-    DEPLOY --> PODS
-    GKE -->|"queue depth, pod count,<br/>node count over time"| DASH["Cloud Monitoring<br/>dashboard"]
 
-    style PUBSUB fill:#e8f0fe,stroke:#4285f4
-    style BASE fill:#fef7e0,stroke:#f9ab00
-    style WORK fill:#e6f4ea,stroke:#34a853
-    style DASH fill:#f3e8fd,stroke:#a142f4
+    KEDA --> DASH["Cloud Monitoring dashboard<br/>queue depth, pod count, node count over time"]
+    AUTOSCALER --> DASH
 ```
 
-Everything below `KEDA` in the `keda-workload` box is **0 nodes / $0 compute**
-at rest. A burst of messages is what temporarily materializes it, and it
-disappears again once the queue drains and the cooldown period passes.
+The `keda-workload` pool is **0 nodes / $0 compute** at rest. A burst of
+messages is what temporarily materializes it, and it disappears again once
+the queue drains and the cooldown period passes.
 
 ## AWS → GCP mapping
 
