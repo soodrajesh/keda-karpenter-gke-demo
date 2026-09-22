@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pubsub-consumer
+  namespace: keda-demo
+  labels:
+    app: pubsub-consumer
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: pubsub-consumer
+  template:
+    metadata:
+      labels:
+        app: pubsub-consumer
+    spec:
+      serviceAccountName: pubsub-consumer
+      nodeSelector:
+        workload: keda-demo
+      tolerations:
+        - key: keda-demo
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
+      containers:
+        - name: consumer
+          image: us-central1-docker.pkg.dev/PROJECT_ID/keda-demo/consumer:latest
+          env:
+            - name: GCP_PROJECT_ID
+              value: PROJECT_ID
+            - name: PUBSUB_SUBSCRIPTION
+              value: keda-demo-work-queue-sub
+            - name: WORK_DURATION_SECONDS
+              value: "5"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi

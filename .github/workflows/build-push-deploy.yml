@@ -1,0 +1,54 @@
+name: build, push, deploy consumer
+
+on:
+  push:
+    branches: [main]
+    paths: ["app/consumer/**", "k8s/**"]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: claude-code-507112
+  REGION: us-central1
+  CLUSTER: keda-karpenter-demo
+  ZONE: us-central1-a
+  REPO: keda-demo
+  IMAGE: consumer
+
+jobs:
+  build-push-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.WIF_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: build and push image
+        working-directory: app/consumer
+        run: |
+          IMAGE_URI="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/${{ env.IMAGE }}:${{ github.sha }}"
+          docker build -t "$IMAGE_URI" .
+          docker push "$IMAGE_URI"
+          echo "IMAGE_URI=$IMAGE_URI" >> "$GITHUB_ENV"
+
+      - name: get cluster credentials
+        run: |
+          gcloud container clusters get-credentials ${{ env.CLUSTER }} \
+            --zone ${{ env.ZONE }} --project ${{ env.PROJECT_ID }}
+
+      - name: deploy
+        run: |
+          kubectl apply -f k8s/keda-scaledobject-pubsub.yaml
+          sed "s#us-central1-docker.pkg.dev/PROJECT_ID/keda-demo/consumer:latest#${IMAGE_URI}#; s#PROJECT_ID#${{ env.PROJECT_ID }}#g" \
+            k8s/consumer-deployment.yaml | kubectl apply -f -

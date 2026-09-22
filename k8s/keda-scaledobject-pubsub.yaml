@@ -1,0 +1,32 @@
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: gcp-pubsub-auth
+  namespace: keda-demo
+spec:
+  podIdentity:
+    provider: gcp
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: pubsub-consumer-scaler
+  namespace: keda-demo
+spec:
+  scaleTargetRef:
+    name: pubsub-consumer
+  minReplicaCount: 0
+  maxReplicaCount: 10
+  # No traffic for 60s -> scale back to zero. Fast enough for a live demo,
+  # long enough not to flap while the queue drains in bursts.
+  cooldownPeriod: 60
+  pollingInterval: 15
+  triggers:
+    - type: gcp-pubsub
+      authenticationRef:
+        name: gcp-pubsub-auth
+      metadata:
+        subscriptionName: keda-demo-work-queue-sub
+        mode: SubscriptionSize
+        # One pod per 10 undelivered messages in the subscription.
+        value: "10"

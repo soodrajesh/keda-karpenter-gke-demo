@@ -1,0 +1,61 @@
+name: terraform plan/apply
+
+on:
+  pull_request:
+    paths: ["terraform/**"]
+  push:
+    branches: [main]
+    paths: ["terraform/**"]
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+env:
+  WORKING_DIR: terraform
+
+jobs:
+  plan:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.WIF_SERVICE_ACCOUNT }}
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - run: terraform init
+        working-directory: ${{ env.WORKING_DIR }}
+
+      - run: terraform fmt -check -recursive
+        working-directory: ${{ env.WORKING_DIR }}
+
+      - run: terraform plan -no-color
+        working-directory: ${{ env.WORKING_DIR }}
+
+  apply:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.WIF_SERVICE_ACCOUNT }}
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - run: terraform init
+        working-directory: ${{ env.WORKING_DIR }}
+
+      - run: terraform apply -auto-approve
+        working-directory: ${{ env.WORKING_DIR }}
