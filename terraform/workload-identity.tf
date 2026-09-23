@@ -82,29 +82,17 @@ resource "google_project_iam_member" "github_actions_artifact_registry" {
   member  = "serviceAccount:${google_service_account.github_actions.email}"
 }
 
-# The terraform-plan-apply workflow manages GKE, Pub/Sub, and the two
-# Workload Identity service accounts above, so it needs these specific
-# roles rather than a broad Editor/Owner grant.
-resource "google_project_iam_member" "github_actions_gke_admin" {
-  project = var.project_id
-  role    = "roles/container.admin"
-  member  = "serviceAccount:${google_service_account.github_actions.email}"
-}
-
-resource "google_project_iam_member" "github_actions_pubsub_admin" {
-  project = var.project_id
-  role    = "roles/pubsub.admin"
-  member  = "serviceAccount:${google_service_account.github_actions.email}"
-}
-
-resource "google_project_iam_member" "github_actions_sa_admin" {
-  project = var.project_id
-  role    = "roles/iam.serviceAccountAdmin"
-  member  = "serviceAccount:${google_service_account.github_actions.email}"
-}
-
-resource "google_project_iam_member" "github_actions_wip_admin" {
-  project = var.project_id
-  role    = "roles/iam.workloadIdentityPoolAdmin"
-  member  = "serviceAccount:${google_service_account.github_actions.email}"
-}
+# The terraform-plan-apply workflow needs roles/container.admin,
+# roles/pubsub.admin, roles/iam.serviceAccountAdmin, and
+# roles/iam.workloadIdentityPoolAdmin to manage GKE, Pub/Sub, and the two
+# Workload Identity service accounts above. These are deliberately NOT
+# declared as Terraform resources here: Terraform's provider needs to
+# read/write the *whole* project IAM policy to manage a
+# google_project_iam_member binding, which requires resourcemanager
+# permissions broader than any of these roles grant on their own -- so the
+# github-actions SA can't self-manage its own project-level bindings via
+# its own `terraform apply`. Granting it something broad enough to do that
+# (roles/resourcemanager.projectIamAdmin or wider) defeats the point of
+# scoping it down in the first place. These four roles are granted once,
+# out-of-band, by a human with project-level IAM rights -- see README's
+# CI/CD section for the exact commands.
