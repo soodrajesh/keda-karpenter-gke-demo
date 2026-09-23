@@ -121,20 +121,6 @@ resource "google_service_account" "gke_nodes" {
   project      = var.project_id
 }
 
-resource "google_project_iam_member" "gke_nodes_logging" {
-  project = var.project_id
-  role    = "roles/logging.logWriter"
-  member  = "serviceAccount:${google_service_account.gke_nodes.email}"
-}
-
-resource "google_project_iam_member" "gke_nodes_metrics" {
-  project = var.project_id
-  role    = "roles/monitoring.metricWriter"
-  member  = "serviceAccount:${google_service_account.gke_nodes.email}"
-}
-
-resource "google_project_iam_member" "gke_nodes_artifact_registry" {
-  project = var.project_id
-  role    = "roles/artifactregistry.reader"
-  member  = "serviceAccount:${google_service_account.gke_nodes.email}"
-}
+# gke_nodes also needs roles/logging.logWriter, roles/monitoring.metricWriter,
+# and roles/artifactregistry.reader -- granted out-of-band, same reason and
+# same bootstrap command as workload-identity.tf (see README's CI/CD section).

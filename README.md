@@ -145,24 +145,50 @@ gsutil iam ch serviceAccount:$(terraform output -raw github_actions_service_acco
   gs://<your-project-id>-keda-demo-tfstate
 ```
 
-Both workflows' service account also needs several roles granted directly
-on the project -- `container.admin`, `pubsub.admin`, `iam.serviceAccountAdmin`,
-`iam.workloadIdentityPoolAdmin` (used by `terraform-plan-apply`), and
-`container.developer`, `artifactregistry.writer` (used by
-`build-push-deploy`) -- granted once, out-of-band, by a human. These are
-deliberately *not* Terraform resources: managing a `google_project_iam_member`
-binding requires reading and writing the whole project IAM policy, which
-needs broader `resourcemanager` permissions than any of these roles grant
-on their own, so the CI service account can never self-grant them through
-its own `terraform apply`:
+Every project-level role that any of this repo's service accounts needs is
+granted once, out-of-band, by a human -- deliberately *not* as Terraform
+resources. Managing a `google_project_iam_member` binding requires reading
+and writing the *whole* project IAM policy, which needs broader
+`resourcemanager` permissions than any single role grants on its own. That
+means **no** service account here can ever self-grant project-level roles
+through its own `terraform apply` -- including `github-actions` granting
+roles to itself, which is exactly the scenario a narrowly-scoped CI
+identity should never be trusted with anyway (the alternative would be
+handing it `roles/editor` or `roles/resourcemanager.projectIamAdmin`, which
+defeats the point of scoping it down). Run this once, as a human with
+project-level IAM rights, before the first `terraform apply` (local or CI):
 
 ```bash
-SA="serviceAccount:$(terraform output -raw github_actions_service_account)"
+PROJECT_ID=<your-project-id>
+
+# github-actions: terraform-plan-apply + build-push-deploy + the dashboard
+# resource it manages
+gcloud iam service-accounts create keda-demo-github-actions --project "$PROJECT_ID" 2>/dev/null || true
+SA="serviceAccount:keda-demo-github-actions@${PROJECT_ID}.iam.gserviceaccount.com"
 for role in roles/container.admin roles/pubsub.admin roles/iam.serviceAccountAdmin \
-            roles/iam.workloadIdentityPoolAdmin roles/container.developer roles/artifactregistry.writer; do
-  gcloud projects add-iam-policy-binding <your-project-id> --member="$SA" --role="$role"
+            roles/iam.workloadIdentityPoolAdmin roles/container.developer \
+            roles/artifactregistry.writer roles/monitoring.editor; do
+  gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="$SA" --role="$role"
+done
+
+# gke-nodes: what every GKE node runs as
+SA="serviceAccount:keda-demo-gke-nodes@${PROJECT_ID}.iam.gserviceaccount.com"
+for role in roles/logging.logWriter roles/monitoring.metricWriter roles/artifactregistry.reader; do
+  gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="$SA" --role="$role"
+done
+
+# keda-operator: what the KEDA operator pod's gcp-pubsub scaler authenticates as
+SA="serviceAccount:keda-demo-keda-operator@${PROJECT_ID}.iam.gserviceaccount.com"
+for role in roles/monitoring.viewer roles/pubsub.viewer; do
+  gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="$SA" --role="$role"
 done
 ```
+
+(The `keda-demo-github-actions` and `keda-demo-gke-nodes` /
+`keda-demo-keda-operator` service accounts themselves are created by
+Terraform on first apply -- if this is a from-scratch setup, run
+`terraform apply` once first so the accounts exist, *then* run the grants
+above, then re-run `terraform apply` for everything that depends on them.)
 
 ## Teardown
 

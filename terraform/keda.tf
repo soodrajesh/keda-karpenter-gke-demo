@@ -7,17 +7,9 @@ resource "google_service_account" "keda_operator" {
   project      = var.project_id
 }
 
-resource "google_project_iam_member" "keda_operator_monitoring_viewer" {
-  project = var.project_id
-  role    = "roles/monitoring.viewer"
-  member  = "serviceAccount:${google_service_account.keda_operator.email}"
-}
-
-resource "google_project_iam_member" "keda_operator_pubsub_viewer" {
-  project = var.project_id
-  role    = "roles/pubsub.viewer"
-  member  = "serviceAccount:${google_service_account.keda_operator.email}"
-}
+# keda_operator also needs roles/monitoring.viewer and roles/pubsub.viewer
+# -- granted out-of-band, same reason and same bootstrap command as
+# workload-identity.tf (see README's CI/CD section).
 
 resource "google_service_account_iam_member" "keda_operator_workload_identity_binding" {
   service_account_id = google_service_account.keda_operator.name
