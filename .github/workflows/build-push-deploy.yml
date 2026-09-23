@@ -32,6 +32,8 @@ jobs:
 
       - uses: google-github-actions/setup-gcloud@v2
 
+      - run: gcloud components install gke-gcloud-auth-plugin --quiet
+
       - run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
 
       - name: build and push image
@@ -48,6 +50,8 @@ jobs:
             --zone ${{ env.ZONE }} --project ${{ env.PROJECT_ID }}
 
       - name: deploy
+        env:
+          USE_GKE_GCLOUD_AUTH_PLUGIN: "True"
         run: |
           kubectl apply -f k8s/keda-scaledobject-pubsub.yaml
           sed "s#us-central1-docker.pkg.dev/__PROJECT_ID__/keda-demo/consumer:latest#${IMAGE_URI}#; s#__PROJECT_ID__#${{ env.PROJECT_ID }}#g" \

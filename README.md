@@ -135,6 +135,16 @@ terraform output workload_identity_provider   # -> WIF_PROVIDER
 terraform output github_actions_service_account  # -> WIF_SERVICE_ACCOUNT
 ```
 
+The GitHub Actions service account also needs read/write access to the
+Terraform state bucket itself -- this is a bootstrap step outside Terraform
+(the bucket has to exist before `terraform init` can use it as a backend,
+so it can't grant access to itself):
+
+```bash
+gsutil iam ch serviceAccount:$(terraform output -raw github_actions_service_account):roles/storage.objectAdmin \
+  gs://<your-project-id>-keda-demo-tfstate
+```
+
 ## Teardown
 
 `scripts/down.sh` deletes pushed container images (Terraform can't remove a
