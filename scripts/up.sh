@@ -17,6 +17,31 @@ cd "$ROOT_DIR/terraform"
 terraform init -input=false
 terraform apply -auto-approve
 
+echo "==> granting bootstrap IAM roles (idempotent -- safe to re-run)"
+echo "    These can't be Terraform resources (see README's CI/CD section for"
+echo "    why), and importantly aren't a true one-time step: destroying and"
+echo "    recreating these service accounts (e.g. via scripts/down.sh then"
+echo "    this script) invalidates every prior grant, since IAM bindings"
+echo "    resolve to the account's underlying unique ID, not just its email."
+SA="serviceAccount:keda-demo-github-actions@${PROJECT_ID}.iam.gserviceaccount.com"
+for role in roles/container.admin roles/pubsub.admin roles/iam.serviceAccountAdmin \
+            roles/iam.workloadIdentityPoolAdmin roles/container.developer \
+            roles/artifactregistry.writer roles/monitoring.editor roles/compute.viewer; do
+  gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="$SA" --role="$role" --condition=None >/dev/null
+done
+SA="serviceAccount:keda-demo-gke-nodes@${PROJECT_ID}.iam.gserviceaccount.com"
+for role in roles/logging.logWriter roles/monitoring.metricWriter roles/artifactregistry.reader; do
+  gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="$SA" --role="$role" --condition=None >/dev/null
+done
+SA="serviceAccount:keda-demo-keda-operator@${PROJECT_ID}.iam.gserviceaccount.com"
+for role in roles/monitoring.viewer roles/pubsub.viewer; do
+  gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="$SA" --role="$role" --condition=None >/dev/null
+done
+# GCS bucket IAM has the same staleness issue and isn't a project-level
+# binding, so it needs its own grant too.
+gsutil iam ch "serviceAccount:keda-demo-github-actions@${PROJECT_ID}.iam.gserviceaccount.com:roles/storage.objectAdmin" \
+  "gs://${PROJECT_ID}-keda-demo-tfstate" >/dev/null 2>&1 || true
+
 echo "==> ensuring gke-gcloud-auth-plugin is installed (required by kubectl)"
 gcloud components install gke-gcloud-auth-plugin --quiet
 export USE_GKE_GCLOUD_AUTH_PLUGIN=True

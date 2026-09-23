@@ -190,6 +190,19 @@ Terraform on first apply -- if this is a from-scratch setup, run
 `terraform apply` once first so the accounts exist, *then* run the grants
 above, then re-run `terraform apply` for everything that depends on them.)
 
+**This is not a true one-time step.** `scripts/down.sh` / `terraform
+destroy` deletes these service accounts along with everything else, and
+Google Cloud's IAM bindings resolve to the account's underlying unique ID,
+not just its email -- so when `scripts/up.sh` recreates an account with
+the *same email*, every IAM binding made before the teardown is now
+silently stale (`gcloud projects get-iam-policy` will show it as
+`deleted:serviceAccount:...`). Both `terraform apply` (self-referential
+project IAM) and any `kubectl` RBAC that depends on IAM (GKE's
+IAM-to-RBAC mapping can also take a few minutes to catch up after a fresh
+grant) will fail with permission errors that look identical to a first-time
+setup issue. **Re-run the bootstrap grants above after every full
+teardown + redeploy cycle**, not just once ever.
+
 ## Teardown
 
 `scripts/down.sh` deletes pushed container images (Terraform can't remove a
