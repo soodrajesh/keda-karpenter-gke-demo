@@ -167,7 +167,7 @@ gcloud iam service-accounts create keda-demo-github-actions --project "$PROJECT_
 SA="serviceAccount:keda-demo-github-actions@${PROJECT_ID}.iam.gserviceaccount.com"
 for role in roles/container.admin roles/pubsub.admin roles/iam.serviceAccountAdmin \
             roles/iam.workloadIdentityPoolAdmin roles/container.developer \
-            roles/artifactregistry.writer roles/monitoring.editor; do
+            roles/artifactregistry.writer roles/monitoring.editor roles/compute.viewer; do
   gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="$SA" --role="$role"
 done
 
