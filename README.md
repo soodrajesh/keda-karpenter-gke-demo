@@ -11,7 +11,7 @@ flowchart TB
     LG["load-generator (publish.py)"] -->|"burst N messages"| TOPIC(["Pub/Sub topic<br/>keda-demo-work-queue"])
     TOPIC --> SUB(["Pub/Sub subscription<br/>tracks backlog depth"])
 
-    SUB -->|"polls num_undelivered_messages<br/>every 15s"| KEDA["KEDA operator + ScaledObject<br/>· baseline node pool, 1x e2-micro, always on"]
+    SUB -->|"polls num_undelivered_messages<br/>every 15s"| KEDA["KEDA operator + ScaledObject<br/>· baseline node pool, 1x e2-small, always on"]
 
     KEDA -->|"scales Deployment<br/>0 to 10 replicas"| DEPLOY["pubsub-consumer Deployment"]
 
@@ -58,10 +58,13 @@ the queue drains and the cooldown period passes.
    the Deployment back to 0 replicas.
 6. With no pods left requesting resources, the cluster autoscaler removes
    the now-empty nodes from `keda-workload` back down to 0.
-7. Idle-state cost: one `e2-micro` baseline node (covered by GCP's Always
-   Free tier in `us-central1`) + Pub/Sub + Artifact Registry, all pay-per-use
-   and negligible at this volume. The zonal cluster's management fee is
-   waived (one free zonal cluster per billing account). Everything else is
+7. Idle-state cost: one `e2-small` baseline node (running the KEDA operator
+   — `e2-micro`'s Always Free allocatable memory isn't enough for KEDA's
+   operator + webhook + metrics-apiserver together) + Pub/Sub + Artifact
+   Registry, all pay-per-use and negligible at this volume. The
+   `keda-workload` pool, which only runs when scaling, does stay on
+   `e2-micro`. The zonal cluster's management fee is waived (one free zonal
+   cluster per billing account). Everything else is
    $0 when there's no traffic.
 
 Watch it happen on the Cloud Monitoring dashboard Terraform creates

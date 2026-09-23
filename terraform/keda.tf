@@ -51,6 +51,34 @@ resource "helm_release" "keda" {
     value = google_service_account.keda_operator.email
   }
 
+  # The chart's default 100m/100Mi request per component (300m/300Mi total)
+  # doesn't fit next to GKE's own system daemonsets on a small baseline
+  # node. These three pods do almost no work at this demo's scale, so
+  # trimming requests is safe and keeps the baseline node cheap.
+  set {
+    name  = "resources.operator.requests.cpu"
+    value = "20m"
+  }
+  set {
+    name  = "resources.operator.requests.memory"
+    value = "64Mi"
+  }
+  set {
+    name  = "resources.metricServer.requests.cpu"
+    value = "20m"
+  }
+  set {
+    name  = "resources.metricServer.requests.memory"
+    value = "64Mi"
+  }
+  # Admission webhooks only validate ScaledObject/TriggerAuthentication CRDs
+  # on create/update -- not required for scaling to work, and the baseline
+  # node's memory margin is too tight to also fit this third pod.
+  set {
+    name  = "webhooks.enabled"
+    value = "false"
+  }
+
   depends_on = [
     google_container_node_pool.baseline,
     google_service_account_iam_member.keda_operator_workload_identity_binding,

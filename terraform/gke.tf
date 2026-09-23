@@ -53,7 +53,12 @@ resource "google_container_node_pool" "baseline" {
   node_count = 1
 
   node_config {
-    machine_type    = "e2-micro"
+    # e2-micro (Always Free) has only ~640Mi allocatable after GKE's
+    # per-node system daemonsets -- not enough room for the KEDA operator +
+    # admission-webhook + metrics-apiserver together. e2-small is a few
+    # cents/hour and this demo is torn down right after, so it's the
+    # pragmatic choice for the one node that must always schedule KEDA.
+    machine_type    = "e2-small"
     disk_type       = "pd-standard"
     disk_size_gb    = 30
     service_account = google_service_account.gke_nodes.email
