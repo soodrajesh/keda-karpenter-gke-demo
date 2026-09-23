@@ -1,3 +1,5 @@
+# State bucket must exist before `terraform init`, and the GitHub Actions
+# SA needs roles/storage.objectAdmin on it granted out-of-band (see README).
 terraform {
   required_version = ">= 1.5"
 
