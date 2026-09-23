@@ -145,19 +145,21 @@ gsutil iam ch serviceAccount:$(terraform output -raw github_actions_service_acco
   gs://<your-project-id>-keda-demo-tfstate
 ```
 
-The `terraform-plan-apply` workflow also needs its service account to hold
-`roles/container.admin`, `roles/pubsub.admin`, `roles/iam.serviceAccountAdmin`,
-and `roles/iam.workloadIdentityPoolAdmin` on the project -- also granted
-once, out-of-band, by a human. These are deliberately *not* Terraform
-resources: managing a `google_project_iam_member` binding requires reading
-and writing the whole project IAM policy, which needs broader
-`resourcemanager` permissions than any of these roles grant on their own,
-so the CI service account can never self-grant them through its own
-`terraform apply`:
+Both workflows' service account also needs several roles granted directly
+on the project -- `container.admin`, `pubsub.admin`, `iam.serviceAccountAdmin`,
+`iam.workloadIdentityPoolAdmin` (used by `terraform-plan-apply`), and
+`container.developer`, `artifactregistry.writer` (used by
+`build-push-deploy`) -- granted once, out-of-band, by a human. These are
+deliberately *not* Terraform resources: managing a `google_project_iam_member`
+binding requires reading and writing the whole project IAM policy, which
+needs broader `resourcemanager` permissions than any of these roles grant
+on their own, so the CI service account can never self-grant them through
+its own `terraform apply`:
 
 ```bash
 SA="serviceAccount:$(terraform output -raw github_actions_service_account)"
-for role in roles/container.admin roles/pubsub.admin roles/iam.serviceAccountAdmin roles/iam.workloadIdentityPoolAdmin; do
+for role in roles/container.admin roles/pubsub.admin roles/iam.serviceAccountAdmin \
+            roles/iam.workloadIdentityPoolAdmin roles/container.developer roles/artifactregistry.writer; do
   gcloud projects add-iam-policy-binding <your-project-id> --member="$SA" --role="$role"
 done
 ```

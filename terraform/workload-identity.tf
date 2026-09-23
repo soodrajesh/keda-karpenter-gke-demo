@@ -70,17 +70,9 @@ resource "google_service_account_iam_member" "github_actions_wif_binding" {
   member              = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.repository/${var.github_repo}"
 }
 
-resource "google_project_iam_member" "github_actions_gke" {
-  project = var.project_id
-  role    = "roles/container.developer"
-  member  = "serviceAccount:${google_service_account.github_actions.email}"
-}
-
-resource "google_project_iam_member" "github_actions_artifact_registry" {
-  project = var.project_id
-  role    = "roles/artifactregistry.writer"
-  member  = "serviceAccount:${google_service_account.github_actions.email}"
-}
+# github-actions also needs roles/container.developer (kubectl access) and
+# roles/artifactregistry.writer (image push) for build-push-deploy.yml, for
+# the same self-management reason below -- granted out-of-band.
 
 # The terraform-plan-apply workflow needs roles/container.admin,
 # roles/pubsub.admin, roles/iam.serviceAccountAdmin, and
