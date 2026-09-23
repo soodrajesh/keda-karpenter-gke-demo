@@ -144,4 +144,19 @@ Registry, and the monitoring dashboard. Brings the project back to $0.
 
 ## Screenshots
 
-Captured from a live run — see [docs/screenshots](docs/screenshots).
+Captured from a live run against `claude-code-507112` on 2026-09-23: 200
+messages published, KEDA scaled the consumer Deployment 0→10, the GKE
+cluster autoscaler provisioned 2 nodes on `keda-workload`, the backlog
+drained, and everything scaled back to zero.
+
+**Scaled up** — `ScaledObject` active, 10/10 pods `Running` across 2
+autoscaler-provisioned nodes:
+![Scaled up](docs/screenshots/01-scaled-up.png)
+
+**Scaled back to zero** — backlog drained, pods gone, the `keda-workload`
+node draining (`SchedulingDisabled`) on its way out:
+![Scaled down](docs/screenshots/02-scaled-down.png)
+
+**Backlog drain, measured via Cloud Monitoring** — `num_undelivered_messages`
+on the subscription, sampled every minute:
+![Backlog timeline](docs/screenshots/03-backlog-timeline.png)

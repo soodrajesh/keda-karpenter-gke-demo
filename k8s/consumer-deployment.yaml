@@ -25,10 +25,10 @@ spec:
           effect: NoSchedule
       containers:
         - name: consumer
-          image: us-central1-docker.pkg.dev/PROJECT_ID/keda-demo/consumer:latest
+          image: us-central1-docker.pkg.dev/__PROJECT_ID__/keda-demo/consumer:latest
           env:
             - name: GCP_PROJECT_ID
-              value: PROJECT_ID
+              value: __PROJECT_ID__
             - name: PUBSUB_SUBSCRIPTION
               value: keda-demo-work-queue-sub
             - name: WORK_DURATION_SECONDS

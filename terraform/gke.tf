@@ -53,12 +53,15 @@ resource "google_container_node_pool" "baseline" {
   node_count = 1
 
   node_config {
-    # e2-micro (Always Free) has only ~640Mi allocatable after GKE's
-    # per-node system daemonsets -- not enough room for the KEDA operator +
-    # admission-webhook + metrics-apiserver together. e2-small is a few
-    # cents/hour and this demo is torn down right after, so it's the
-    # pragmatic choice for the one node that must always schedule KEDA.
-    machine_type    = "e2-small"
+    # e2-micro doesn't leave enough allocatable memory for KEDA's control
+    # plane pods once GKE's own system daemonsets land (see keda-workload
+    # below for the same finding). e2-small was still too tight in
+    # practice: konnectivity-agent autoscales with cluster size (it added
+    # a 3rd replica once keda-workload nodes joined), and that alone
+    # squeezed the KEDA operator out on reschedule. e2-medium's extra
+    # memory gives real headroom; still a few cents/hour for a demo
+    # that's torn down right after.
+    machine_type    = "e2-medium"
     disk_type       = "pd-standard"
     disk_size_gb    = 30
     service_account = google_service_account.gke_nodes.email

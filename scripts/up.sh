@@ -27,7 +27,7 @@ docker push "$IMAGE_URI"
 
 echo "==> deploying k8s manifests"
 kubectl apply -f "$ROOT_DIR/k8s/keda-scaledobject-pubsub.yaml"
-sed "s#us-central1-docker.pkg.dev/PROJECT_ID/keda-demo/consumer:latest#${IMAGE_URI}#; s#PROJECT_ID#${PROJECT_ID}#g" \
+sed "s#us-central1-docker.pkg.dev/__PROJECT_ID__/keda-demo/consumer:latest#${IMAGE_URI}#; s#__PROJECT_ID__#${PROJECT_ID}#g" \
   "$ROOT_DIR/k8s/consumer-deployment.yaml" | kubectl apply -f -
 
 echo "==> done. Cluster is up, consumer image deployed, KEDA watching the Pub/Sub subscription."
