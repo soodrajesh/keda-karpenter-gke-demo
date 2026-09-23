@@ -4,12 +4,6 @@ variable "project_id" {
   default     = "claude-code-507112"
 }
 
-variable "project_number" {
-  description = "GCP project number (for Workload Identity Federation resource names)"
-  type        = string
-  default     = "273040233392"
-}
-
 variable "region" {
   description = "GCP region for the cluster and regional resources"
   type        = string

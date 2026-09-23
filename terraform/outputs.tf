@@ -27,5 +27,6 @@ output "workload_identity_provider" {
 }
 
 output "monitoring_dashboard_url" {
-  value = "https://console.cloud.google.com/monitoring/dashboards/builder/${element(split("/", google_monitoring_dashboard.keda_demo.id), 1)}?project=${var.project_id}"
+  # id is "projects/<number>/dashboards/<dashboard-id>" -- index 3, not 1.
+  value = "https://console.cloud.google.com/monitoring/dashboards/builder/${element(split("/", google_monitoring_dashboard.keda_demo.id), 3)}?project=${var.project_id}"
 }

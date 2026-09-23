@@ -6,6 +6,11 @@ metadata:
   labels:
     app: pubsub-consumer
 spec:
+  # KEDA's HPA owns this field after the first apply. Re-applying this whole
+  # manifest (e.g. via `kubectl apply -f`) resets it to 0 and fights the
+  # HPA until the next reconcile -- if the queue has a backlog at that
+  # moment, KEDA will re-scale it back up within one polling interval, but
+  # don't be surprised by a brief drop to 0 replicas right after a re-apply.
   replicas: 0
   selector:
     matchLabels:

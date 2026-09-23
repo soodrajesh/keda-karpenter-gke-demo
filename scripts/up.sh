@@ -17,12 +17,18 @@ cd "$ROOT_DIR/terraform"
 terraform init -input=false
 terraform apply -auto-approve
 
+echo "==> ensuring gke-gcloud-auth-plugin is installed (required by kubectl)"
+gcloud components install gke-gcloud-auth-plugin --quiet
+export USE_GKE_GCLOUD_AUTH_PLUGIN=True
+
 echo "==> fetching cluster credentials"
 gcloud container clusters get-credentials "$CLUSTER" --zone "$ZONE" --project "$PROJECT_ID"
 
 echo "==> building and pushing consumer image: $IMAGE_URI"
 gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
-docker build -t "$IMAGE_URI" "$ROOT_DIR/app/consumer"
+# GKE nodes are amd64 regardless of the machine this script runs on (e.g. Apple
+# Silicon defaults to arm64 and produces an image the nodes can't pull).
+docker build --platform linux/amd64 -t "$IMAGE_URI" "$ROOT_DIR/app/consumer"
 docker push "$IMAGE_URI"
 
 echo "==> deploying k8s manifests"

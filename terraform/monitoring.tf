@@ -26,7 +26,10 @@ resource "google_monitoring_dashboard" "keda_demo" {
           }
         },
         {
-          title = "GKE node count by pool"
+          # Not filterable by node pool -- k8s_node's exported labels don't
+          # include node_pool -- so this is cluster-wide ready-node count,
+          # not "by pool" as it might sound.
+          title = "Ready GKE nodes (cluster-wide)"
           xyChart = {
             dataSets = [{
               timeSeriesQuery = {
@@ -42,7 +45,10 @@ resource "google_monitoring_dashboard" "keda_demo" {
           }
         },
         {
-          title = "Consumer pod count"
+          # Approximated via distinct pods reporting network metrics, since
+          # there's no direct "pod count" metric -- treat as directional,
+          # not exact.
+          title = "Consumer pod count (approx., via per-pod network metric)"
           xyChart = {
             dataSets = [{
               timeSeriesQuery = {

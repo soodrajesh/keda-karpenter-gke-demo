@@ -13,8 +13,8 @@ resource "google_service_account" "keda_operator" {
 
 resource "google_service_account_iam_member" "keda_operator_workload_identity_binding" {
   service_account_id = google_service_account.keda_operator.name
-  role                = "roles/iam.workloadIdentityUser"
-  member              = "serviceAccount:${var.project_id}.svc.id.goog[keda/keda-operator]"
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "serviceAccount:${var.project_id}.svc.id.goog[keda/keda-operator]"
 }
 
 resource "kubernetes_namespace" "keda" {

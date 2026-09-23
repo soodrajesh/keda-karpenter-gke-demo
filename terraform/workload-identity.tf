@@ -24,8 +24,8 @@ resource "google_pubsub_topic_iam_member" "publisher_publisher" {
 
 resource "google_service_account_iam_member" "consumer_workload_identity_binding" {
   service_account_id = google_service_account.pubsub_consumer.name
-  role                = "roles/iam.workloadIdentityUser"
-  member              = "serviceAccount:${var.project_id}.svc.id.goog[${var.k8s_namespace}/${var.consumer_ksa}]"
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "serviceAccount:${var.project_id}.svc.id.goog[${var.k8s_namespace}/${var.consumer_ksa}]"
 }
 
 # --- GitHub Actions -> GCP identity (Workload Identity Federation) --------
@@ -40,7 +40,7 @@ resource "google_iam_workload_identity_pool" "github" {
 }
 
 resource "google_iam_workload_identity_pool_provider" "github" {
-  workload_identity_pool_id         = google_iam_workload_identity_pool.github.workload_identity_pool_id
+  workload_identity_pool_id          = google_iam_workload_identity_pool.github.workload_identity_pool_id
   workload_identity_pool_provider_id = "github-provider"
   display_name                       = "GitHub OIDC"
   project                            = var.project_id
@@ -66,8 +66,8 @@ resource "google_service_account" "github_actions" {
 
 resource "google_service_account_iam_member" "github_actions_wif_binding" {
   service_account_id = google_service_account.github_actions.name
-  role                = "roles/iam.workloadIdentityUser"
-  member              = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.repository/${var.github_repo}"
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.repository/${var.github_repo}"
 }
 
 # github-actions also needs roles/container.developer (kubectl access) and
@@ -75,16 +75,18 @@ resource "google_service_account_iam_member" "github_actions_wif_binding" {
 # the same self-management reason below -- granted out-of-band.
 
 # The terraform-plan-apply workflow needs roles/container.admin,
-# roles/pubsub.admin, roles/iam.serviceAccountAdmin, and
-# roles/iam.workloadIdentityPoolAdmin to manage GKE, Pub/Sub, and the two
-# Workload Identity service accounts above. These are deliberately NOT
-# declared as Terraform resources here: Terraform's provider needs to
-# read/write the *whole* project IAM policy to manage a
-# google_project_iam_member binding, which requires resourcemanager
-# permissions broader than any of these roles grant on their own -- so the
-# github-actions SA can't self-manage its own project-level bindings via
-# its own `terraform apply`. Granting it something broad enough to do that
-# (roles/resourcemanager.projectIamAdmin or wider) defeats the point of
-# scoping it down in the first place. These four roles are granted once,
-# out-of-band, by a human with project-level IAM rights -- see README's
-# CI/CD section for the exact commands.
+# roles/pubsub.admin, roles/iam.serviceAccountAdmin,
+# roles/iam.workloadIdentityPoolAdmin, roles/monitoring.editor (to manage
+# the dashboard resource), and roles/compute.viewer (to read the GKE node
+# pools' underlying instance groups during refresh) to manage this
+# config. These are deliberately NOT declared as Terraform resources here:
+# Terraform's provider needs to read/write the *whole* project IAM policy
+# to manage a google_project_iam_member binding, which requires
+# resourcemanager permissions broader than any of these roles grant on
+# their own -- so the github-actions SA can't self-manage its own
+# project-level bindings via its own `terraform apply`. Granting it
+# something broad enough to do that (roles/resourcemanager.projectIamAdmin
+# or wider) defeats the point of scoping it down in the first place. All
+# of these roles are granted once, out-of-band, by a human with
+# project-level IAM rights -- see README's CI/CD section for the exact
+# commands.

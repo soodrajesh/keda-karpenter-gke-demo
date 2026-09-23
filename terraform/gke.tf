@@ -1,21 +1,19 @@
-# GKE Standard cluster (zonal, in us-central1 -- one of the Always Free
-# regions -- to stay inside GCP's free tier as much as this workload allows):
-#   - Zonal Standard clusters get the $0.10/hr cluster management fee waived
-#     (one free zonal cluster per billing account).
-#   - Both node pools use e2-micro, the Always Free machine type, with a
-#     30GB pd-standard boot disk (the Always Free persistent-disk allowance).
+# GKE Standard cluster, zonal, in us-central1 (one of the Always Free
+# regions). Zonal Standard clusters get the $0.10/hr cluster management fee
+# waived (one free zonal cluster per billing account) regardless of node
+# machine type. e2-micro itself turned out NOT to work for either node pool
+# in practice -- see the node_config blocks below for why -- so neither
+# pool is actually within the Always Free compute allowance; e2-medium
+# (baseline) and e2-small (keda-workload) are the pragmatic floor for
+# "cheap", not literally free. See README's cost section for the numbers.
 # Two node pools:
 #   - "baseline": fixed size 1, hosts kube-system + the KEDA operator so the
-#     control loop that watches Pub/Sub backlog is always running. This one
-#     node is exactly what Always Free's "1 e2-micro/month" allowance covers.
+#     control loop that watches Pub/Sub backlog is always running.
 #   - "keda-workload": autoscales 0 -> N. This is the pool that plays the role
 #     Karpenter plays on EKS: it is empty (0 nodes, $0 compute) until KEDA
 #     scales the consumer Deployment up and pods go Pending, then the GKE
 #     cluster autoscaler provisions nodes for them, and removes them again
-#     once the pods scale back to zero and the pool drains. Nodes here are
-#     billed (at e2-micro's small hourly rate) only while a burst is active,
-#     since they're on top of the one free-tier instance already used by
-#     "baseline".
+#     once the pods scale back to zero and the pool drains.
 resource "google_container_cluster" "primary" {
   name     = var.cluster_name
   location = var.zone
