@@ -15,7 +15,7 @@ flowchart TB
 
     KEDA -->|"scales Deployment<br/>0 to 10 replicas"| DEPLOY["pubsub-consumer Deployment"]
 
-    DEPLOY -.->|"Pending pods trigger"| AUTOSCALER["GKE cluster autoscaler<br/>· keda-workload pool, 0 to 2x e2-micro<br/>· plays the Karpenter role"]
+    DEPLOY -.->|"Pending pods trigger"| AUTOSCALER["GKE cluster autoscaler<br/>· keda-workload pool, 0 to 2x e2-small<br/>· plays the Karpenter role"]
     AUTOSCALER -.->|"provisions / removes nodes for"| DEPLOY
 
     DEPLOY --> PODS["consumer pods<br/>pull + ack messages"]
@@ -58,14 +58,17 @@ the queue drains and the cooldown period passes.
    the Deployment back to 0 replicas.
 6. With no pods left requesting resources, the cluster autoscaler removes
    the now-empty nodes from `keda-workload` back down to 0.
-7. Idle-state cost: one `e2-small` baseline node (running the KEDA operator
-   — `e2-micro`'s Always Free allocatable memory isn't enough for KEDA's
-   operator + webhook + metrics-apiserver together) + Pub/Sub + Artifact
-   Registry, all pay-per-use and negligible at this volume. The
-   `keda-workload` pool, which only runs when scaling, does stay on
-   `e2-micro`. The zonal cluster's management fee is waived (one free zonal
-   cluster per billing account). Everything else is
-   $0 when there's no traffic.
+7. Idle-state cost: one `e2-small` baseline node, plus Pub/Sub and Artifact
+   Registry (pay-per-use, negligible at this volume). Both node pools use
+   `e2-small` rather than the Always Free `e2-micro` type -- in practice
+   `e2-micro`'s ~640Mi allocatable memory is consumed almost entirely by
+   GKE's own per-node system daemonsets (kube-proxy, CNI, logging/metrics
+   agents) before any workload pod is scheduled, so it can't actually run
+   anything on GKE Standard, not even KEDA's own control-plane pods.
+   `e2-small` is still a few cents/hour. The zonal cluster's management fee
+   is waived (one free zonal cluster per billing account), and the
+   `keda-workload` pool is $0 while scaled to zero. This is the honest
+   floor for "cheap" on GKE Standard, not literally $0.
 
 Watch it happen on the Cloud Monitoring dashboard Terraform creates
 (`terraform output monitoring_dashboard_url`): queue backlog, node count,

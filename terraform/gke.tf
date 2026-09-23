@@ -81,7 +81,12 @@ resource "google_container_node_pool" "keda_workload" {
   }
 
   node_config {
-    machine_type    = "e2-micro"
+    # e2-micro turns out not to work at all here either: GKE's own per-node
+    # system daemonsets (kube-proxy, CNI, logging/metrics agents) consume
+    # nearly all of its ~640Mi allocatable memory before any workload pod
+    # is scheduled, so even a single 64Mi consumer pod can't fit. e2-small
+    # is the smallest machine type that actually leaves room for pods.
+    machine_type    = "e2-small"
     disk_type       = "pd-standard"
     disk_size_gb    = 30
     service_account = google_service_account.gke_nodes.email
